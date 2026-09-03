@@ -1,18 +1,18 @@
 # Tripti Jewellers
 
-Tripti Jewellers is a mobile-first ecommerce website for fashion, beauty, gourmet food, and thoughtful gifts.
+Tripti Jewellers is a mobile-first ecommerce website for gold, diamond, gemstone, wedding, and everyday jewellery.
 
 It is built with plain HTML, CSS, and JavaScript. There are no frameworks, build tools, or software packages to install.
 
 ## Features
 
 - Responsive home, shop, product, cart, about, and contact pages
-- Product filters and dynamic product details
+- Jewellery search, category filters, and dynamic product details
 - Shopping cart saved in the browser with `localStorage`
 - Quantity updates, item removal, and automatic order totals
 - WhatsApp checkout form
 - UPI payment section
-- Mobile hamburger menu
+- Responsive desktop category navigation and mobile jewellery drawer
 - SEO and social-sharing information on every page
 
 ## Preview the website
@@ -31,7 +31,7 @@ contact.html        Contact, shipping, returns, and FAQs
 css/style.css       All website styling
 js/products.js      Editable product catalogue
 js/main.js          Cart and website functionality
-images/             Product and payment placeholders
+images/             Campaign, product, and payment images
 ```
 
 ## Important launch settings
@@ -49,4 +49,3 @@ Before publishing the final store:
 - CSS3
 - Vanilla JavaScript
 - Browser `localStorage`
-

@@ -3,23 +3,23 @@
 ## Store and audience
 
 - **Store name:** Tripti Jewellers
-- **Store type:** A premium multi-category lifestyle store
-- **Products:** Clothing and fashion, beauty and wellness, gourmet food, gifts, and handmade items
+- **Store type:** A premium Indian jewellery store
+- **Products:** Gold, diamond, earrings, daily wear, gemstone, wedding, and gifting jewellery
 - **Primary audience:** Shoppers of all ages, with an inclusive and elegant presentation
 
 ## Brand direction
 
 - **Personality:** Premium, refined, warm, and trustworthy
-- **Colour palette:** Black, cream, and gold
+- **Colour palette:** Deep burgundy, warm ivory, and antique gold
 - **Typography:** Elegant editorial headings with clean, readable supporting text
-- **Photography:** Real product photos will replace the supplied placeholders before launch
-- **Reference websites:** Not supplied yet
+- **Photography:** Original campaign imagery with real product photography to be added before launch
+- **Reference direction:** Luxury jewellery navigation and campaign-led storefront, interpreted in an original Tripti Jewellers identity
 
 ## Catalogue
 
-- **Launch size:** Approximately 5–25 products
-- **Main price range:** ₹299–₹1,999
-- **Sample catalogue:** Editable sample products will be supplied for the first version
+- **Launch size:** Approximately 8–25 products
+- **Main price range:** ₹15,000–₹1,60,000
+- **Sample catalogue:** Eight editable jewellery designs are supplied for the first version
 
 ## Pages
 
@@ -46,8 +46,8 @@
 ## Store features
 
 - Offers banner
-- Customer reviews
-- Size information for clothing
+- Jewellery search and category navigation
+- Ring size information
 - Shipping and returns information
 - FAQ section
 - Persistent cart using browser storage
@@ -55,8 +55,7 @@
 
 ## Details to replace before launch
 
-- Confirmed domain (the site currently uses `thetriptiedit.in` as a placeholder)
+- Confirmed custom domain
 - Store WhatsApp number
 - UPI ID and QR code
 - Real product photos and final product details
-

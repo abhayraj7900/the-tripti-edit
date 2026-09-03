@@ -16,6 +16,7 @@ const PRODUCTS = window.PRODUCTS || [];
 
 document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
+  setupSearchForms();
   setupStoreDetails();
   setupProductActions();
   updateCartCount();
@@ -72,29 +73,42 @@ function showToast(message) {
 
 function setupNavigation() {
   const toggle = document.querySelector(".menu-toggle");
-  const navigation = document.querySelector(".main-nav");
+  const navigation = document.querySelector("#main-nav");
+  const backdrop = document.querySelector(".menu-backdrop");
   if (!toggle || !navigation) return;
 
-  toggle.addEventListener("click", () => {
-    const isOpen = navigation.classList.toggle("is-open");
+  function setOpen(isOpen) {
+    navigation.classList.toggle("is-open", isOpen);
+    document.body.classList.toggle("menu-open", isOpen);
     toggle.classList.toggle("is-open", isOpen);
     toggle.setAttribute("aria-expanded", String(isOpen));
-    toggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
-  });
+    toggle.setAttribute("aria-label", isOpen ? "Close jewellery menu" : "Open jewellery menu");
+    navigation.setAttribute("aria-hidden", String(!isOpen));
+    if (backdrop) backdrop.hidden = !isOpen;
+  }
 
-  navigation.addEventListener("click", () => {
-    navigation.classList.remove("is-open");
-    toggle.classList.remove("is-open");
-    toggle.setAttribute("aria-expanded", "false");
-  });
+  toggle.addEventListener("click", () => setOpen(!navigation.classList.contains("is-open")));
+  document.querySelectorAll("[data-menu-close]").forEach((control) => control.addEventListener("click", () => setOpen(false)));
+  navigation.addEventListener("click", (event) => { if (event.target.closest("a")) setOpen(false); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") setOpen(false); });
 }
 
 function setActiveNavigation() {
   const currentFile = window.location.pathname.split("/").pop() || "index.html";
-  document.querySelectorAll(".main-nav a").forEach((link) => {
-    if (link.getAttribute("href") === currentFile || (currentFile === "product.html" && link.getAttribute("href") === "shop.html")) {
+  const activeCategory = new URLSearchParams(window.location.search).get("category");
+  document.querySelectorAll(".category-nav a, .mobile-menu a").forEach((link) => {
+    const href = link.getAttribute("href");
+    const linkCategory = new URL(href, window.location.href).searchParams.get("category");
+    if ((activeCategory && linkCategory === activeCategory) || (!activeCategory && href === currentFile) || (currentFile === "product.html" && href === "shop.html")) {
       link.setAttribute("aria-current", "page");
     }
+  });
+}
+
+function setupSearchForms() {
+  const query = new URLSearchParams(window.location.search).get("search") || "";
+  document.querySelectorAll(".site-search input[name='search']").forEach((input) => {
+    input.value = query;
   });
 }
 
@@ -117,7 +131,7 @@ function productCard(product) {
   return `
     <article class="product-card">
       <a class="product-image-wrap" href="product.html?id=${product.id}" aria-label="View ${product.name}">
-        <img src="${product.image}" alt="${product.imageAlt}" loading="lazy">
+        <img src="${product.image}" alt="${product.imageAlt}" loading="lazy" style="object-position: ${product.imagePosition || "center"}">
         ${product.badge ? `<span class="product-badge">${product.badge}</span>` : ""}
       </a>
       <div class="product-card-body">
@@ -144,6 +158,7 @@ function setupShop() {
 
   const categories = ["All", ...new Set(PRODUCTS.map((product) => product.category))];
   const requestedCategory = new URLSearchParams(window.location.search).get("category");
+  const searchQuery = (new URLSearchParams(window.location.search).get("search") || "").trim().toLowerCase();
   let activeCategory = categories.includes(requestedCategory) ? requestedCategory : "All";
 
   filters.innerHTML = categories.map((category) => `
@@ -151,9 +166,12 @@ function setupShop() {
   `).join("");
 
   function renderFilteredProducts() {
-    const visible = activeCategory === "All" ? PRODUCTS : PRODUCTS.filter((product) => product.category === activeCategory);
+    let visible = activeCategory === "All" ? PRODUCTS : PRODUCTS.filter((product) => product.category === activeCategory);
+    if (searchQuery) {
+      visible = visible.filter((product) => `${product.name} ${product.category} ${product.description}`.toLowerCase().includes(searchQuery));
+    }
     container.innerHTML = visible.map(productCard).join("");
-    document.querySelector("#product-count").textContent = `${visible.length} ${visible.length === 1 ? "product" : "products"}`;
+    document.querySelector("#product-count").textContent = `${visible.length} ${visible.length === 1 ? "design" : "designs"}${searchQuery ? ` for “${searchQuery}”` : ""}`;
     document.querySelector("#shop-empty").hidden = visible.length > 0;
   }
 
@@ -195,7 +213,7 @@ function renderProductPage() {
 
   container.innerHTML = `
     <section class="product-detail">
-      <div class="product-detail-image"><img src="${product.image}" alt="${product.imageAlt}">${product.badge ? `<span class="product-badge">${product.badge}</span>` : ""}</div>
+      <div class="product-detail-image"><img src="${product.image}" alt="${product.imageAlt}" style="object-position: ${product.imagePosition || "center"}">${product.badge ? `<span class="product-badge">${product.badge}</span>` : ""}</div>
       <div class="product-info">
         <p class="eyebrow">${product.category}</p>
         <h1>${product.name}</h1>
