@@ -12,6 +12,7 @@ const STORE_CONFIG = {
 };
 
 const CART_KEY = "theTriptiEditCart";
+const WISHLIST_KEY = "triptiJewellersWishlist";
 const PRODUCTS = window.PRODUCTS || [];
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -20,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupStoreDetails();
   setupProductActions();
   updateCartCount();
+  updateWishlistCount();
   setActiveNavigation();
   document.querySelectorAll("[data-current-year]").forEach((item) => {
     item.textContent = new Date().getFullYear();
@@ -30,6 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (page === "shop") setupShop();
   if (page === "product") renderProductPage();
   if (page === "cart") renderCart();
+  if (page === "wishlist") renderWishlist();
   if (page === "contact") setupContactForm();
 });
 
@@ -58,6 +61,20 @@ function getCart() {
 function saveCart(cart) {
   localStorage.setItem(CART_KEY, JSON.stringify(cart));
   updateCartCount();
+}
+
+function getWishlist() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WISHLIST_KEY));
+    return Array.isArray(saved) ? [...new Set(saved.map(Number).filter(Number.isInteger))] : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveWishlist(wishlist) {
+  localStorage.setItem(WISHLIST_KEY, JSON.stringify(wishlist));
+  updateWishlistCount();
 }
 
 function showToast(message) {
@@ -96,7 +113,7 @@ function setupNavigation() {
 function setActiveNavigation() {
   const currentFile = window.location.pathname.split("/").pop() || "index.html";
   const activeCategory = new URLSearchParams(window.location.search).get("category");
-  document.querySelectorAll(".category-nav a, .mobile-menu a").forEach((link) => {
+  document.querySelectorAll(".category-nav a, .mobile-menu a, .header-actions a").forEach((link) => {
     const href = link.getAttribute("href");
     const linkCategory = new URL(href, window.location.href).searchParams.get("category");
     if ((activeCategory && linkCategory === activeCategory) || (!activeCategory && href === currentFile) || (currentFile === "product.html" && href === "shop.html")) {
@@ -128,8 +145,10 @@ function setupStoreDetails() {
 
 function productCard(product) {
   const oldPrice = product.oldPrice ? `<span class="old-price">${formatPrice(product.oldPrice)}</span>` : "";
+  const isSaved = getWishlist().includes(product.id);
   return `
     <article class="product-card">
+      <button class="wishlist-toggle ${isSaved ? "is-saved" : ""}" type="button" data-wishlist-toggle="${product.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove" : "Add"} ${product.name} ${isSaved ? "from" : "to"} wishlist"><span data-wishlist-icon aria-hidden="true">${isSaved ? "♥" : "♡"}</span></button>
       <a class="product-image-wrap" href="product.html?id=${product.id}" aria-label="View ${product.name}">
         <img src="${product.image}" alt="${product.imageAlt}" loading="lazy" style="object-position: ${product.imagePosition || "center"}">
         ${product.badge ? `<span class="product-badge">${product.badge}</span>` : ""}
@@ -208,6 +227,7 @@ function renderProductPage() {
   document.querySelector("#breadcrumb-product").textContent = product.name;
 
   const oldPrice = product.oldPrice ? `<span class="old-price">${formatPrice(product.oldPrice)}</span>` : "";
+  const isSaved = getWishlist().includes(product.id);
   const sizeField = product.sizes ? `
     <div class="field-group"><label for="product-size">Select size</label><select id="product-size">${product.sizes.map((size) => `<option value="${size}">${size}</option>`).join("")}</select><a href="contact.html#faq" class="size-link">Size help</a></div>` : "";
 
@@ -222,6 +242,7 @@ function renderProductPage() {
         <p class="product-description">${product.description}</p>
         ${sizeField}
         <div class="purchase-row"><div class="quantity-control" aria-label="Choose quantity"><button type="button" data-product-qty="minus" aria-label="Decrease quantity">−</button><input id="product-quantity" type="number" min="1" max="10" value="1" aria-label="Quantity"><button type="button" data-product-qty="plus" aria-label="Increase quantity">+</button></div><button class="button button-gold" type="button" data-detail-add="${product.id}">Add to bag</button></div>
+        <button class="wishlist-detail-button ${isSaved ? "is-saved" : ""}" type="button" data-wishlist-toggle="${product.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove" : "Add"} ${product.name} ${isSaved ? "from" : "to"} wishlist"><span data-wishlist-icon aria-hidden="true">${isSaved ? "♥" : "♡"}</span><span data-wishlist-text>${isSaved ? "Saved to wishlist" : "Save to wishlist"}</span></button>
         <div class="delivery-note"><span>✦</span><div><strong>Complimentary shipping above ₹999</strong><p>Usually dispatched within 2–3 working days.</p></div></div>
         <details class="detail-accordion" open><summary>Product details</summary><ul>${product.details.map((detail) => `<li>${detail}</li>`).join("")}</ul></details>
         <details class="detail-accordion"><summary>Shipping & returns</summary><p>Estimated delivery is 4–8 working days. Contact us within 3 days for damaged or incorrect items.</p></details>
@@ -253,6 +274,17 @@ function setupProductQuantity() {
 
 function setupProductActions() {
   document.addEventListener("click", (event) => {
+    const wishlistButton = event.target.closest("[data-wishlist-toggle]");
+    if (wishlistButton) {
+      const productId = Number(wishlistButton.dataset.wishlistToggle);
+      const isSaved = toggleWishlist(productId);
+      const product = getProduct(productId);
+      if (document.body.dataset.page === "wishlist") renderWishlist();
+      else syncWishlistButtons(productId);
+      showToast(`${product?.name || "Product"} ${isSaved ? "saved to" : "removed from"} your wishlist`);
+      return;
+    }
+
     const quickButton = event.target.closest("[data-add-to-cart]");
     if (quickButton) addToCart(Number(quickButton.dataset.addToCart), 1);
 
@@ -263,6 +295,55 @@ function setupProductActions() {
       addToCart(Number(detailButton.dataset.detailAdd), quantity, size);
     }
   });
+}
+
+/* ---------- Wishlist actions ---------- */
+
+function toggleWishlist(productId) {
+  const wishlist = getWishlist();
+  const existingIndex = wishlist.indexOf(productId);
+  if (existingIndex >= 0) wishlist.splice(existingIndex, 1);
+  else wishlist.push(productId);
+  saveWishlist(wishlist);
+  return existingIndex < 0;
+}
+
+function syncWishlistButtons(productId) {
+  const isSaved = getWishlist().includes(productId);
+  const product = getProduct(productId);
+  document.querySelectorAll(`[data-wishlist-toggle="${productId}"]`).forEach((button) => {
+    button.classList.toggle("is-saved", isSaved);
+    button.setAttribute("aria-pressed", String(isSaved));
+    button.setAttribute("aria-label", `${isSaved ? "Remove" : "Add"} ${product?.name || "product"} ${isSaved ? "from" : "to"} wishlist`);
+    const icon = button.querySelector("[data-wishlist-icon]");
+    const text = button.querySelector("[data-wishlist-text]");
+    if (icon) icon.textContent = isSaved ? "♥" : "♡";
+    if (text) text.textContent = isSaved ? "Saved to wishlist" : "Save to wishlist";
+  });
+}
+
+function updateWishlistCount() {
+  const count = getWishlist().filter((id) => getProduct(id)).length;
+  document.querySelectorAll(".wishlist-count").forEach((item) => item.textContent = count);
+}
+
+function renderWishlist() {
+  const grid = document.querySelector("#wishlist-products");
+  const content = document.querySelector("#wishlist-content");
+  const empty = document.querySelector("#wishlist-empty");
+  const summary = document.querySelector("#wishlist-summary");
+  if (!grid || !content || !empty || !summary) return;
+
+  const stored = getWishlist();
+  const wishlist = stored.filter((id) => getProduct(id));
+  if (wishlist.length !== stored.length) saveWishlist(wishlist);
+  const isEmpty = wishlist.length === 0;
+  content.hidden = isEmpty;
+  empty.hidden = !isEmpty;
+  if (isEmpty) return;
+
+  summary.textContent = `${wishlist.length} saved ${wishlist.length === 1 ? "design" : "designs"}`;
+  grid.innerHTML = wishlist.map((id) => productCard(getProduct(id))).join("");
 }
 
 function addToCart(productId, quantity = 1, size = "") {
