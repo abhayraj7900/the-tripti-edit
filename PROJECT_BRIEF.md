@@ -1,8 +1,8 @@
-# The Tripti Edit — Project Brief
+# Tripti Jewellers — Project Brief
 
 ## Store and audience
 
-- **Store name:** The Tripti Edit
+- **Store name:** Tripti Jewellers
 - **Store type:** A premium multi-category lifestyle store
 - **Products:** Clothing and fashion, beauty and wellness, gourmet food, gifts, and handmade items
 - **Primary audience:** Shoppers of all ages, with an inclusive and elegant presentation

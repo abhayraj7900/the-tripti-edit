@@ -1,5 +1,5 @@
 /* ================================================================
-   THE TRIPTI EDIT — MAIN JAVASCRIPT
+   TRIPTI JEWELLERS — MAIN JAVASCRIPT
    Cart, catalogue, navigation and WhatsApp checkout live here.
    ================================================================ */
 
@@ -99,7 +99,7 @@ function setActiveNavigation() {
 }
 
 function setupStoreDetails() {
-  const greeting = encodeURIComponent("Hello The Tripti Edit, I would like some help.");
+  const greeting = encodeURIComponent("Hello Tripti Jewellers, I would like some help.");
   document.querySelectorAll("[data-whatsapp-link]").forEach((link) => {
     link.href = `https://wa.me/${STORE_CONFIG.whatsappNumber}?text=${greeting}`;
     link.target = "_blank";
@@ -182,11 +182,11 @@ function renderProductPage() {
     return;
   }
 
-  document.title = `${product.name} | The Tripti Edit`;
-  updateMeta("meta[name='description']", `${product.name}: ${product.description} Shop from The Tripti Edit.`);
-  updateMeta("meta[property='og:title']", `${product.name} | The Tripti Edit`);
+  document.title = `${product.name} | Tripti Jewellers`;
+  updateMeta("meta[name='description']", `${product.name}: ${product.description} Shop from Tripti Jewellers.`);
+  updateMeta("meta[property='og:title']", `${product.name} | Tripti Jewellers`);
   updateMeta("meta[property='og:description']", product.description);
-  updateMeta("meta[property='og:url']", `https://thetriptiedit.in/product.html?id=${product.id}`);
+  updateMeta("meta[property='og:url']", `https://tripti-jewellers.rosy-mochi-9272.chatgpt.site/product.html?id=${product.id}`);
   document.querySelector("#breadcrumb-product").textContent = product.name;
 
   const oldPrice = product.oldPrice ? `<span class="old-price">${formatPrice(product.oldPrice)}</span>` : "";
@@ -344,7 +344,7 @@ function setupCheckoutForm(cart, totals) {
       return `• ${product.name}${size} × ${item.quantity} — ${formatPrice(product.price * item.quantity)}`;
     }).join("\n");
     const message = [
-      "Hello The Tripti Edit, I would like to place this order:", "", orderLines, "",
+      "Hello Tripti Jewellers, I would like to place this order:", "", orderLines, "",
       `Subtotal: ${formatPrice(totals.subtotal)}`,
       `Shipping: ${totals.shipping === 0 ? "Complimentary" : formatPrice(totals.shipping)}`,
       `Order total: ${formatPrice(totals.total)}`, "",
@@ -366,8 +366,7 @@ function setupContactForm() {
     event.preventDefault();
     if (!form.reportValidity()) return;
     const data = new FormData(form);
-    const message = `Hello The Tripti Edit,\n\nMy name is ${data.get("name")} (${data.get("phone")}).\n\n${data.get("message")}`;
+    const message = `Hello Tripti Jewellers,\n\nMy name is ${data.get("name")} (${data.get("phone")}).\n\n${data.get("message")}`;
     window.open(`https://wa.me/${STORE_CONFIG.whatsappNumber}?text=${encodeURIComponent(message)}`, "_blank", "noopener");
   });
 }
-

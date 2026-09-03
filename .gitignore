@@ -24,3 +24,5 @@ Desktop.ini
 # Dependencies (not used by this project, but safe to ignore if added later)
 node_modules/
 
+# Generated static build output
+dist/

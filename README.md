@@ -1,6 +1,6 @@
-# The Tripti Edit
+# Tripti Jewellers
 
-The Tripti Edit is a mobile-first ecommerce website for fashion, beauty, gourmet food, and thoughtful gifts.
+Tripti Jewellers is a mobile-first ecommerce website for fashion, beauty, gourmet food, and thoughtful gifts.
 
 It is built with plain HTML, CSS, and JavaScript. There are no frameworks, build tools, or software packages to install.
 
