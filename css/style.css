@@ -400,7 +400,6 @@ body.menu-open { overflow: hidden; }
   .header-action > span:first-child { font-family: var(--display); font-size: 1.45rem; line-height: 1; }
   .cart-link { min-height: 48px; display: grid; grid-template-columns: auto auto; place-items: center; }
   .cart-icon-image { width: 36px; height: 36px; }
-  .cart-link > span:nth-child(2) { display: block; }
   .cart-count { grid-column: 2; grid-row: 1; margin: -22px -12px 0 0; }
   .category-nav { display: block; border-top: 1px solid var(--line); background: var(--white); }
   .category-nav-inner { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 18px; overflow-x: auto; scrollbar-width: none; }
