@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (page === "shop") setupShop();
   if (page === "product") renderProductPage();
   if (page === "cart") renderCart();
-  if (page === "wishlist") renderWishlist();
+  if (page === "watchlist" || page === "wishlist") renderWishlist();
   if (page === "contact") setupContactForm();
 });
 
@@ -148,7 +148,7 @@ function productCard(product) {
   const isSaved = getWishlist().includes(product.id);
   return `
     <article class="product-card">
-      <button class="wishlist-toggle ${isSaved ? "is-saved" : ""}" type="button" data-wishlist-toggle="${product.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove" : "Add"} ${product.name} ${isSaved ? "from" : "to"} wishlist"><span data-wishlist-icon aria-hidden="true">${isSaved ? "♥" : "♡"}</span></button>
+      <button class="wishlist-toggle ${isSaved ? "is-saved" : ""}" type="button" data-wishlist-toggle="${product.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove" : "Add"} ${product.name} ${isSaved ? "from" : "to"} watchlist"><span data-wishlist-icon aria-hidden="true">${isSaved ? "♥" : "♡"}</span></button>
       <a class="product-image-wrap" href="product.html?id=${product.id}" aria-label="View ${product.name}">
         <img src="${product.image}" alt="${product.imageAlt}" loading="lazy" style="object-position: ${product.imagePosition || "center"}">
         ${product.badge ? `<span class="product-badge">${product.badge}</span>` : ""}
@@ -242,7 +242,7 @@ function renderProductPage() {
         <p class="product-description">${product.description}</p>
         ${sizeField}
         <div class="purchase-row"><div class="quantity-control" aria-label="Choose quantity"><button type="button" data-product-qty="minus" aria-label="Decrease quantity">−</button><input id="product-quantity" type="number" min="1" max="10" value="1" aria-label="Quantity"><button type="button" data-product-qty="plus" aria-label="Increase quantity">+</button></div><button class="button button-gold" type="button" data-detail-add="${product.id}">Add to bag</button></div>
-        <button class="wishlist-detail-button ${isSaved ? "is-saved" : ""}" type="button" data-wishlist-toggle="${product.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove" : "Add"} ${product.name} ${isSaved ? "from" : "to"} wishlist"><span data-wishlist-icon aria-hidden="true">${isSaved ? "♥" : "♡"}</span><span data-wishlist-text>${isSaved ? "Saved to wishlist" : "Save to wishlist"}</span></button>
+        <button class="wishlist-detail-button ${isSaved ? "is-saved" : ""}" type="button" data-wishlist-toggle="${product.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove" : "Add"} ${product.name} ${isSaved ? "from" : "to"} watchlist"><span data-wishlist-icon aria-hidden="true">${isSaved ? "♥" : "♡"}</span><span data-wishlist-text>${isSaved ? "Saved to watchlist" : "Save to watchlist"}</span></button>
         <div class="delivery-note"><span>✦</span><div><strong>Complimentary shipping above ₹999</strong><p>Usually dispatched within 2–3 working days.</p></div></div>
         <details class="detail-accordion" open><summary>Product details</summary><ul>${product.details.map((detail) => `<li>${detail}</li>`).join("")}</ul></details>
         <details class="detail-accordion"><summary>Shipping & returns</summary><p>Estimated delivery is 4–8 working days. Contact us within 3 days for damaged or incorrect items.</p></details>
@@ -279,9 +279,9 @@ function setupProductActions() {
       const productId = Number(wishlistButton.dataset.wishlistToggle);
       const isSaved = toggleWishlist(productId);
       const product = getProduct(productId);
-      if (document.body.dataset.page === "wishlist") renderWishlist();
+      if (["watchlist", "wishlist"].includes(document.body.dataset.page)) renderWishlist();
       else syncWishlistButtons(productId);
-      showToast(`${product?.name || "Product"} ${isSaved ? "saved to" : "removed from"} your wishlist`);
+      showToast(`${product?.name || "Product"} ${isSaved ? "saved to" : "removed from"} your watchlist`);
       return;
     }
 
@@ -314,11 +314,11 @@ function syncWishlistButtons(productId) {
   document.querySelectorAll(`[data-wishlist-toggle="${productId}"]`).forEach((button) => {
     button.classList.toggle("is-saved", isSaved);
     button.setAttribute("aria-pressed", String(isSaved));
-    button.setAttribute("aria-label", `${isSaved ? "Remove" : "Add"} ${product?.name || "product"} ${isSaved ? "from" : "to"} wishlist`);
+    button.setAttribute("aria-label", `${isSaved ? "Remove" : "Add"} ${product?.name || "product"} ${isSaved ? "from" : "to"} watchlist`);
     const icon = button.querySelector("[data-wishlist-icon]");
     const text = button.querySelector("[data-wishlist-text]");
     if (icon) icon.textContent = isSaved ? "♥" : "♡";
-    if (text) text.textContent = isSaved ? "Saved to wishlist" : "Save to wishlist";
+    if (text) text.textContent = isSaved ? "Saved to watchlist" : "Save to watchlist";
   });
 }
 
