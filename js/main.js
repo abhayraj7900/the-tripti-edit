@@ -7,25 +7,30 @@
 const STORE_CONFIG = {
   whatsappNumber: "919999999999", // Country code + number, without + or spaces.
   upiId: "thetriptiedit@upi",
+  supportEmail: "triptijewellers4826@gmail.com",
   freeShippingMinimum: 999,
   standardShipping: 79
 };
 
 const CART_KEY = "theTriptiEditCart";
 const WISHLIST_KEY = "triptiJewellersWishlist";
-const PRODUCTS = window.PRODUCTS || [];
+let PRODUCTS = window.PRODUCTS || [];
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  window.TriptiSupabase?.consumeAuthHash();
   setupNavigation();
   setupSearchForms();
-  setupStoreDetails();
   setupProductActions();
   updateCartCount();
   updateWishlistCount();
   setActiveNavigation();
+  updateAccountLinks();
   document.querySelectorAll("[data-current-year]").forEach((item) => {
     item.textContent = new Date().getFullYear();
   });
+
+  await loadRemoteStoreData();
+  setupStoreDetails();
 
   const page = document.body.dataset.page;
   if (page === "home") renderFeaturedProducts();
@@ -34,6 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (page === "cart") renderCart();
   if (page === "watchlist" || page === "wishlist") renderWishlist();
   if (page === "contact") setupContactForm();
+  syncWishlistForSignedInUser();
 });
 
 /* ---------- Shared helpers ---------- */
@@ -84,6 +90,67 @@ function showToast(message) {
   toast.classList.add("is-visible");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.remove("is-visible"), 2600);
+}
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" })[character]);
+}
+
+function mapDatabaseProduct(product) {
+  return {
+    id: Number(product.id),
+    name: product.name,
+    category: product.category,
+    price: Number(product.price),
+    oldPrice: product.old_price === null ? null : Number(product.old_price),
+    stock: Number(product.stock || 0),
+    image: product.image_url,
+    imagePosition: product.image_position || "center",
+    imageAlt: product.image_alt || product.name,
+    badge: product.badge || "",
+    featured: Boolean(product.featured),
+    description: product.description || "",
+    details: Array.isArray(product.details) ? product.details : [],
+    sizes: Array.isArray(product.sizes) && product.sizes.length ? product.sizes : undefined
+  };
+}
+
+async function loadRemoteStoreData() {
+  const api = window.TriptiSupabase;
+  if (!api) return;
+  const page = document.body.dataset.page;
+  const needsCatalogue = ["home", "shop", "product", "cart", "watchlist", "wishlist"].includes(page);
+  const [catalogResult, settingsResult, bannerResult] = await Promise.allSettled([
+    needsCatalogue ? api.select("products", "select=*&is_active=eq.true&order=display_order.asc,created_at.asc") : Promise.resolve([]),
+    api.select("site_settings", "select=*&id=eq.1&limit=1"),
+    page === "home" ? api.select("banners", "select=*&is_active=eq.true&order=display_order.asc,created_at.desc&limit=1") : Promise.resolve([])
+  ]);
+
+  if (catalogResult.status === "fulfilled" && catalogResult.value.length) {
+    PRODUCTS = catalogResult.value.map(mapDatabaseProduct);
+    window.PRODUCTS = PRODUCTS;
+  }
+  if (settingsResult.status === "fulfilled" && settingsResult.value[0]) {
+    const settings = settingsResult.value[0];
+    STORE_CONFIG.whatsappNumber = settings.whatsapp_number || STORE_CONFIG.whatsappNumber;
+    STORE_CONFIG.upiId = settings.upi_id || STORE_CONFIG.upiId;
+    STORE_CONFIG.supportEmail = settings.support_email || STORE_CONFIG.supportEmail;
+    STORE_CONFIG.freeShippingMinimum = Number(settings.free_shipping_minimum ?? STORE_CONFIG.freeShippingMinimum);
+    STORE_CONFIG.standardShipping = Number(settings.standard_shipping ?? STORE_CONFIG.standardShipping);
+    document.querySelectorAll(".offer-bar").forEach((item) => { item.textContent = settings.announcement; });
+  }
+  if (bannerResult.status === "fulfilled" && bannerResult.value[0]) renderManagedBanner(bannerResult.value[0]);
+}
+
+function renderManagedBanner(banner) {
+  const main = document.querySelector("main");
+  if (!main || document.querySelector("#managed-home-banner") || document.body.dataset.page !== "home") return;
+  const section = document.createElement("section");
+  section.id = "managed-home-banner";
+  section.className = "managed-home-banner";
+  if (banner.image_url) section.style.backgroundImage = `linear-gradient(90deg, rgba(35, 9, 16, .93), rgba(52, 7, 19, .45)), url("${String(banner.image_url).replace(/[\"\\\n\r]/g, "")}")`;
+  section.innerHTML = `<div class="container"><p class="eyebrow eyebrow-light">Featured now</p><h2>${escapeHTML(banner.title)}</h2><p>${escapeHTML(banner.body)}</p><a class="button button-gold" href="${escapeHTML(banner.link_url || "shop.html")}">${escapeHTML(banner.button_label || "Shop now")}</a></div>`;
+  main.prepend(section);
 }
 
 /* ---------- Header and navigation ---------- */
@@ -139,6 +206,28 @@ function setupStoreDetails() {
   document.querySelectorAll("[data-upi-id]").forEach((item) => {
     item.textContent = STORE_CONFIG.upiId;
   });
+  document.querySelectorAll("a[href^='mailto:']").forEach((link) => {
+    link.href = `mailto:${STORE_CONFIG.supportEmail}`;
+    link.textContent = STORE_CONFIG.supportEmail;
+  });
+}
+
+async function updateAccountLinks() {
+  const api = window.TriptiSupabase;
+  const session = api ? await api.getSession({ refresh: false }) : null;
+  const destination = session ? "account.html" : "login.html";
+  const label = session ? "My account" : "Login";
+  document.querySelectorAll("[data-account-link]").forEach((link) => {
+    link.href = destination;
+    link.setAttribute("aria-label", session ? "View my account" : "Login or create account");
+    const text = link.querySelector("[data-account-text]");
+    if (text) text.textContent = label;
+  });
+  document.querySelectorAll("[data-account-menu-link]").forEach((link) => {
+    link.href = destination;
+    const text = link.querySelector("[data-account-menu-text]");
+    if (text) text.textContent = label;
+  });
 }
 
 /* ---------- Product cards and catalogue ---------- */
@@ -146,19 +235,22 @@ function setupStoreDetails() {
 function productCard(product) {
   const oldPrice = product.oldPrice ? `<span class="old-price">${formatPrice(product.oldPrice)}</span>` : "";
   const isSaved = getWishlist().includes(product.id);
+  const inStock = product.stock === undefined || product.stock > 0;
+  const name = escapeHTML(product.name);
   return `
     <article class="product-card">
-      <button class="wishlist-toggle ${isSaved ? "is-saved" : ""}" type="button" data-wishlist-toggle="${product.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove" : "Add"} ${product.name} ${isSaved ? "from" : "to"} watchlist"><span data-wishlist-icon aria-hidden="true">${isSaved ? "♥" : "♡"}</span></button>
-      <a class="product-image-wrap" href="product.html?id=${product.id}" aria-label="View ${product.name}">
-        <img src="${product.image}" alt="${product.imageAlt}" loading="lazy" style="object-position: ${product.imagePosition || "center"}">
-        ${product.badge ? `<span class="product-badge">${product.badge}</span>` : ""}
+      <button class="wishlist-toggle ${isSaved ? "is-saved" : ""}" type="button" data-wishlist-toggle="${product.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove" : "Add"} ${name} ${isSaved ? "from" : "to"} watchlist"><span data-wishlist-icon aria-hidden="true">${isSaved ? "♥" : "♡"}</span></button>
+      <a class="product-image-wrap" href="product.html?id=${product.id}" aria-label="View ${name}">
+        <img src="${escapeHTML(product.image)}" alt="${escapeHTML(product.imageAlt)}" loading="lazy" style="object-position: ${escapeHTML(product.imagePosition || "center")}">
+        ${product.badge ? `<span class="product-badge">${escapeHTML(product.badge)}</span>` : ""}
+        ${inStock ? "" : '<span class="stock-badge">Out of stock</span>'}
       </a>
       <div class="product-card-body">
-        <p class="product-category">${product.category}</p>
-        <h3><a href="product.html?id=${product.id}">${product.name}</a></h3>
+        <p class="product-category">${escapeHTML(product.category)}</p>
+        <h3><a href="product.html?id=${product.id}">${name}</a></h3>
         <div class="product-card-footer">
           <p class="product-price">${formatPrice(product.price)} ${oldPrice}</p>
-          <button class="quick-add" type="button" data-add-to-cart="${product.id}" aria-label="Add ${product.name} to bag">+</button>
+          <button class="quick-add" type="button" data-add-to-cart="${product.id}" aria-label="${inStock ? `Add ${name} to bag` : `${name} is out of stock`}" ${inStock ? "" : "disabled"}>${inStock ? "+" : "×"}</button>
         </div>
       </div>
     </article>`;
@@ -228,23 +320,24 @@ function renderProductPage() {
 
   const oldPrice = product.oldPrice ? `<span class="old-price">${formatPrice(product.oldPrice)}</span>` : "";
   const isSaved = getWishlist().includes(product.id);
+  const inStock = product.stock === undefined || product.stock > 0;
   const sizeField = product.sizes ? `
-    <div class="field-group"><label for="product-size">Select size</label><select id="product-size">${product.sizes.map((size) => `<option value="${size}">${size}</option>`).join("")}</select><a href="contact.html#faq" class="size-link">Size help</a></div>` : "";
+    <div class="field-group"><label for="product-size">Select size</label><select id="product-size">${product.sizes.map((size) => `<option value="${escapeHTML(size)}">${escapeHTML(size)}</option>`).join("")}</select><a href="contact.html#faq" class="size-link">Size help</a></div>` : "";
 
   container.innerHTML = `
     <section class="product-detail">
-      <div class="product-detail-image"><img src="${product.image}" alt="${product.imageAlt}" style="object-position: ${product.imagePosition || "center"}">${product.badge ? `<span class="product-badge">${product.badge}</span>` : ""}</div>
+      <div class="product-detail-image"><img src="${escapeHTML(product.image)}" alt="${escapeHTML(product.imageAlt)}" style="object-position: ${escapeHTML(product.imagePosition || "center")}">${product.badge ? `<span class="product-badge">${escapeHTML(product.badge)}</span>` : ""}</div>
       <div class="product-info">
-        <p class="eyebrow">${product.category}</p>
-        <h1>${product.name}</h1>
+        <p class="eyebrow">${escapeHTML(product.category)}</p>
+        <h1>${escapeHTML(product.name)}</h1>
         <p class="detail-price">${formatPrice(product.price)} ${oldPrice}</p>
         <p class="tax-note">Inclusive of all taxes</p>
-        <p class="product-description">${product.description}</p>
+        <p class="product-description">${escapeHTML(product.description)}</p>
         ${sizeField}
-        <div class="purchase-row"><div class="quantity-control" aria-label="Choose quantity"><button type="button" data-product-qty="minus" aria-label="Decrease quantity">−</button><input id="product-quantity" type="number" min="1" max="10" value="1" aria-label="Quantity"><button type="button" data-product-qty="plus" aria-label="Increase quantity">+</button></div><button class="button button-gold" type="button" data-detail-add="${product.id}">Add to bag</button></div>
+        <div class="purchase-row"><div class="quantity-control" aria-label="Choose quantity"><button type="button" data-product-qty="minus" aria-label="Decrease quantity">−</button><input id="product-quantity" type="number" min="1" max="${Math.min(10, product.stock || 10)}" value="1" aria-label="Quantity"><button type="button" data-product-qty="plus" aria-label="Increase quantity">+</button></div><button class="button button-gold" type="button" data-detail-add="${product.id}" ${inStock ? "" : "disabled"}>${inStock ? "Add to bag" : "Out of stock"}</button></div>
         <button class="wishlist-detail-button ${isSaved ? "is-saved" : ""}" type="button" data-wishlist-toggle="${product.id}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove" : "Add"} ${product.name} ${isSaved ? "from" : "to"} watchlist"><span data-wishlist-icon aria-hidden="true">${isSaved ? "♥" : "♡"}</span><span data-wishlist-text>${isSaved ? "Saved to watchlist" : "Save to watchlist"}</span></button>
         <div class="delivery-note"><span>✦</span><div><strong>Complimentary shipping above ₹999</strong><p>Usually dispatched within 2–3 working days.</p></div></div>
-        <details class="detail-accordion" open><summary>Product details</summary><ul>${product.details.map((detail) => `<li>${detail}</li>`).join("")}</ul></details>
+        <details class="detail-accordion" open><summary>Product details</summary><ul>${product.details.map((detail) => `<li>${escapeHTML(detail)}</li>`).join("")}</ul></details>
         <details class="detail-accordion"><summary>Shipping & returns</summary><p>Estimated delivery is 4–8 working days. Contact us within 3 days for damaged or incorrect items.</p></details>
       </div>
     </section>`;
@@ -265,7 +358,7 @@ function setupProductQuantity() {
   document.querySelectorAll("[data-product-qty]").forEach((button) => {
     button.addEventListener("click", () => {
       const change = button.dataset.productQty === "plus" ? 1 : -1;
-      input.value = Math.max(1, Math.min(10, Number(input.value) + change));
+      input.value = Math.max(1, Math.min(Number(input.max) || 10, Number(input.value) + change));
     });
   });
 }
@@ -305,7 +398,45 @@ function toggleWishlist(productId) {
   if (existingIndex >= 0) wishlist.splice(existingIndex, 1);
   else wishlist.push(productId);
   saveWishlist(wishlist);
+  persistWishlistChange(productId, existingIndex < 0);
   return existingIndex < 0;
+}
+
+async function persistWishlistChange(productId, isSaved) {
+  const api = window.TriptiSupabase;
+  if (!api) return;
+  const user = await api.getUser();
+  if (!user) return;
+  try {
+    if (isSaved) {
+      await api.insert("wishlist_items", { user_id: user.id, product_id: productId }, { select: false, upsert: true, onConflict: "user_id,product_id" });
+    } else {
+      await api.remove("wishlist_items", `user_id=eq.${encodeURIComponent(user.id)}&product_id=eq.${Number(productId)}`);
+    }
+  } catch (error) {
+    console.warn("Watchlist sync is not ready:", error.message);
+  }
+}
+
+async function syncWishlistForSignedInUser() {
+  const api = window.TriptiSupabase;
+  if (!api) return;
+  const user = await api.getUser();
+  if (!user) return;
+  try {
+    const rows = await api.select("wishlist_items", `select=product_id&user_id=eq.${encodeURIComponent(user.id)}`);
+    const local = getWishlist();
+    const remote = rows.map((row) => Number(row.product_id));
+    const merged = [...new Set([...local, ...remote])];
+    const missing = local.filter((id) => !remote.includes(id));
+    if (missing.length) {
+      await api.insert("wishlist_items", missing.map((productId) => ({ user_id: user.id, product_id: productId })), { select: false, upsert: true, onConflict: "user_id,product_id" });
+    }
+    saveWishlist(merged);
+    if (["watchlist", "wishlist"].includes(document.body.dataset.page)) renderWishlist();
+  } catch (error) {
+    console.warn("Watchlist sync is not ready:", error.message);
+  }
 }
 
 function syncWishlistButtons(productId) {
@@ -347,12 +478,18 @@ function renderWishlist() {
 }
 
 function addToCart(productId, quantity = 1, size = "") {
+  const product = getProduct(productId);
+  if (!product || (product.stock !== undefined && product.stock < 1)) {
+    showToast("This design is currently out of stock");
+    return;
+  }
   const cart = getCart();
   const existing = cart.find((item) => item.id === productId && item.size === size);
-  if (existing) existing.quantity = Math.min(10, existing.quantity + quantity);
-  else cart.push({ id: productId, quantity, size });
+  const maximum = Math.min(10, product.stock ?? 10);
+  if (existing) existing.quantity = Math.min(maximum, existing.quantity + quantity);
+  else cart.push({ id: productId, quantity: Math.min(maximum, quantity), size });
   saveCart(cart);
-  showToast(`${getProduct(productId)?.name || "Product"} added to your bag`);
+  showToast(`${product.name} added to your bag`);
 }
 
 function updateCartCount() {
@@ -388,7 +525,7 @@ function renderCart() {
     return `
       <article class="cart-item">
         <a href="product.html?id=${product.id}" class="cart-item-image"><img src="${product.image}" alt="${product.imageAlt}"></a>
-        <div class="cart-item-info"><p class="product-category">${product.category}</p><h2><a href="product.html?id=${product.id}">${product.name}</a></h2>${item.size ? `<p class="cart-meta">Size: ${item.size}</p>` : ""}<p class="cart-item-price">${formatPrice(product.price)}</p><div class="cart-item-actions"><div class="quantity-control"><button type="button" data-cart-change="-1" data-cart-index="${index}" aria-label="Decrease ${product.name} quantity">−</button><input type="number" min="1" max="10" value="${item.quantity}" data-cart-input="${index}" aria-label="${product.name} quantity"><button type="button" data-cart-change="1" data-cart-index="${index}" aria-label="Increase ${product.name} quantity">+</button></div><button class="remove-button" type="button" data-cart-remove="${index}">Remove</button></div></div>
+        <div class="cart-item-info"><p class="product-category">${escapeHTML(product.category)}</p><h2><a href="product.html?id=${product.id}">${escapeHTML(product.name)}</a></h2>${item.size ? `<p class="cart-meta">Size: ${escapeHTML(item.size)}</p>` : ""}<p class="cart-item-price">${formatPrice(product.price)}</p><div class="cart-item-actions"><div class="quantity-control"><button type="button" data-cart-change="-1" data-cart-index="${index}" aria-label="Decrease ${escapeHTML(product.name)} quantity">−</button><input type="number" min="1" max="${Math.min(10, product.stock ?? 10)}" value="${item.quantity}" data-cart-input="${index}" aria-label="${escapeHTML(product.name)} quantity"><button type="button" data-cart-change="1" data-cart-index="${index}" aria-label="Increase ${escapeHTML(product.name)} quantity">+</button></div><button class="remove-button" type="button" data-cart-remove="${index}">Remove</button></div></div>
         <p class="cart-line-total">${formatPrice(product.price * item.quantity)}</p>
       </article>`;
   }).join("");
@@ -407,7 +544,8 @@ function handleCartClick(event) {
   const cart = getCart();
   if (changeButton) {
     const index = Number(changeButton.dataset.cartIndex);
-    cart[index].quantity = Math.max(1, Math.min(10, cart[index].quantity + Number(changeButton.dataset.cartChange)));
+    const product = getProduct(cart[index].id);
+    cart[index].quantity = Math.max(1, Math.min(10, product?.stock ?? 10, cart[index].quantity + Number(changeButton.dataset.cartChange)));
     saveCart(cart);
     renderCart();
   }
@@ -425,7 +563,8 @@ function handleCartInput(event) {
   if (!input) return;
   const cart = getCart();
   const index = Number(input.dataset.cartInput);
-  cart[index].quantity = Math.max(1, Math.min(10, Number(input.value) || 1));
+  const product = getProduct(cart[index].id);
+  cart[index].quantity = Math.max(1, Math.min(10, product?.stock ?? 10, Number(input.value) || 1));
   saveCart(cart);
   renderCart();
 }
@@ -433,27 +572,79 @@ function handleCartInput(event) {
 function setupCheckoutForm(cart, totals) {
   const form = document.querySelector("#checkout-form");
   if (!form) return;
-  form.onsubmit = (event) => {
+  const savedDraft = JSON.parse(localStorage.getItem("triptiCheckoutDraft") || "null");
+  if (savedDraft) {
+    ["name", "phone", "address"].forEach((key) => { if (savedDraft[key] && form.elements[key]) form.elements[key].value = savedDraft[key]; });
+  }
+  prefillCheckoutFromAccount(form);
+  form.onsubmit = async (event) => {
     event.preventDefault();
     if (!form.reportValidity()) return;
     const data = new FormData(form);
+    const draft = { name: data.get("name"), phone: data.get("phone"), address: data.get("address") };
+    localStorage.setItem("triptiCheckoutDraft", JSON.stringify(draft));
+    const api = window.TriptiSupabase;
+    const user = api ? await api.getUser() : null;
+    if (!user) {
+      window.location.href = "login.html?returnTo=cart.html";
+      return;
+    }
+    const submitButton = form.querySelector("button[type='submit']");
+    const originalLabel = submitButton.textContent;
+    submitButton.disabled = true;
+    submitButton.textContent = "Creating your order…";
+    try {
+      const order = await api.rpc("place_order", {
+        p_customer_name: String(data.get("name")),
+        p_phone: String(data.get("phone")),
+        p_address: String(data.get("address")),
+        p_payment_method: "To be confirmed on WhatsApp",
+        p_items: cart.map((item) => ({ id: item.id, quantity: item.quantity, size: item.size || "" }))
+      });
     const orderLines = cart.map((item) => {
       const product = getProduct(item.id);
       const size = item.size ? `, Size ${item.size}` : "";
       return `• ${product.name}${size} × ${item.quantity} — ${formatPrice(product.price * item.quantity)}`;
     }).join("\n");
     const message = [
-      "Hello Tripti Jewellers, I would like to place this order:", "", orderLines, "",
-      `Subtotal: ${formatPrice(totals.subtotal)}`,
-      `Shipping: ${totals.shipping === 0 ? "Complimentary" : formatPrice(totals.shipping)}`,
-      `Order total: ${formatPrice(totals.total)}`, "",
+      `Hello Tripti Jewellers, I placed order ${order.order_number}:`, "", orderLines, "",
+      `Subtotal: ${formatPrice(order.subtotal)}`,
+      `Shipping: ${Number(order.shipping) === 0 ? "Complimentary" : formatPrice(order.shipping)}`,
+      `Order total: ${formatPrice(order.total)}`, "",
       `Name: ${data.get("name")}`,
       `Phone: ${data.get("phone")}`,
       `Address: ${data.get("address")}`, "",
       "Preferred payment: Please confirm UPI or Cash on Delivery."
     ].join("\n");
-    window.open(`https://wa.me/${STORE_CONFIG.whatsappNumber}?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+      saveCart([]);
+      localStorage.removeItem("triptiCheckoutDraft");
+      window.location.assign(`https://wa.me/${STORE_CONFIG.whatsappNumber}?text=${encodeURIComponent(message)}`);
+    } catch (error) {
+      showToast(error.message);
+      submitButton.disabled = false;
+      submitButton.textContent = originalLabel;
+    }
   };
+}
+
+async function prefillCheckoutFromAccount(form) {
+  const api = window.TriptiSupabase;
+  if (!api || form.elements.name.value || form.elements.phone.value || form.elements.address.value) return;
+  const user = await api.getUser();
+  if (!user) return;
+  try {
+    const [profiles, addresses] = await Promise.all([
+      api.select("profiles", `select=full_name,phone&id=eq.${encodeURIComponent(user.id)}&limit=1`),
+      api.select("addresses", `select=*&user_id=eq.${encodeURIComponent(user.id)}&order=is_default.desc,created_at.desc&limit=1`)
+    ]);
+    const profile = profiles[0];
+    const address = addresses[0];
+    if (profile?.full_name) form.elements.name.value = profile.full_name;
+    if (profile?.phone) form.elements.phone.value = profile.phone;
+    if (address) form.elements.address.value = `${address.address_line}, ${address.city}, ${address.state} – ${address.pincode}`;
+  } catch (error) {
+    console.warn("Checkout profile could not be loaded:", error.message);
+  }
 }
 
 /* ---------- Contact form ---------- */
