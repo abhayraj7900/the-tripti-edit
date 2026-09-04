@@ -216,7 +216,7 @@ async function updateAccountLinks() {
   const api = window.TriptiSupabase;
   const session = api ? await api.getSession({ refresh: false }) : null;
   const destination = session ? "account.html" : "login.html";
-  const label = session ? "My account" : "Login";
+  const label = "My account";
   document.querySelectorAll("[data-account-link]").forEach((link) => {
     link.href = destination;
     link.setAttribute("aria-label", session ? "View my account" : "Login or create account");
